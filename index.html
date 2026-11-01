@@ -310,9 +310,9 @@
       dry.gain.value = 0.8;
 
       const reverb = ctx.createConvolver();
-      reverb.buffer = makeReverb(ctx, 0.9, 3);
+      reverb.buffer = makeReverb(ctx, 0.5, 3);
       const wet = ctx.createGain();
-      wet.gain.value = 0.18;
+      wet.gain.value = 0.14;
 
       soften.connect(dry);   dry.connect(comp);
       soften.connect(reverb); reverb.connect(wet); wet.connect(comp);
@@ -347,9 +347,9 @@
           o.detune.value = cents;
           g.gain.setValueAtTime(0, t);
           g.gain.linearRampToValueAtTime(amp * 0.5, t + 0.015);
-          g.gain.setTargetAtTime(0, t + 0.015, decay * 0.35);
+          g.gain.setTargetAtTime(0, t + 0.015, decay * 0.16);
           o.connect(g); g.connect(out);
-          o.start(t); o.stop(t + 2.5);
+          o.start(t); o.stop(t + 1.2);
         });
       });
     }
