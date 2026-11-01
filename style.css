@@ -175,3 +175,17 @@ h1{font-size:clamp(2.8rem,6vw,5rem)}
 @media(max-width:800px){
   .piano-wrap{flex:none;width:100%;max-width:340px}
 }
+.piano-hint{
+  margin-top:20px;
+  font-size:1rem;
+  font-weight:600;
+  letter-spacing:.06em;
+  color:var(--sage-dark);
+  animation:hintPulse 2s ease-in-out infinite;
+}
+.piano-hint::first-line{font-size:1.15rem;color:var(--gold)}
+
+@keyframes hintPulse{
+  0%,100%{opacity:1}
+  50%{opacity:.55}
+}
