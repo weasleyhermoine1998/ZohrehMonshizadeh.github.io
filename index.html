@@ -216,7 +216,7 @@
         <p class="piano-hint">Hover over the keys to play 🎹<br>(click anywhere once if you hear nothing)</p>
       </div>
       </section> 
-      
+
             <section class="dream" id="dream">
       <div class="dream-art" aria-hidden="true">
         <svg viewBox="0 0 300 400">
@@ -274,16 +274,57 @@
     items.forEach(el => io.observe(el));
   </script>
     <script>
+    
   (function () {
-    let ctx = null;
-    function getCtx() {
-      if (!ctx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return null;
-        ctx = new AC();
+    const OCTAVE = 1;   // برای صدای بم‌تر و گرم‌تر، این را 0.5 بگذار
+
+    let ctx = null, out = null;
+
+    function makeReverb(c, seconds, decay) {
+      const n = Math.floor(c.sampleRate * seconds);
+      const buf = c.createBuffer(2, n, c.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const d = buf.getChannelData(ch);
+        for (let i = 0; i < n; i++) {
+          d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay);
+        }
       }
+      return buf;
+    }
+
+    function setup() {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      ctx = new AC();
+
+      const soften = ctx.createBiquadFilter();
+      soften.type = 'lowpass';
+      soften.frequency.value = 1800;
+      soften.Q.value = 0.4;
+
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -20;
+      comp.ratio.value = 4;
+
+      const dry = ctx.createGain();
+      dry.gain.value = 0.8;
+
+      const reverb = ctx.createConvolver();
+      reverb.buffer = makeReverb(ctx, 2.2, 3);
+      const wet = ctx.createGain();
+      wet.gain.value = 0.28;
+
+      soften.connect(dry);   dry.connect(comp);
+      soften.connect(reverb); reverb.connect(wet); wet.connect(comp);
+      comp.connect(ctx.destination);
+      out = soften;
+    }
+
+    function getCtx() {
+      if (!ctx) setup();
       return ctx;
     }
+
     ['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
       document.addEventListener(ev, () => {
         const c = getCtx();
@@ -291,21 +332,25 @@
       }, { passive: true, capture: true })
     );
 
+    // [ضریب هارمونیک, بلندی, سرعت محو شدن]
+    const partials = [[1, 0.55, 1.1], [2, 0.16, 0.7], [3, 0.05, 0.45], [4, 0.015, 0.3]];
+
     function tone(freq) {
       const t = ctx.currentTime;
-      const master = ctx.createGain();
-      master.gain.setValueAtTime(0.0001, t);
-      master.gain.exponentialRampToValueAtTime(0.5, t + 0.012);
-      master.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
-      master.connect(ctx.destination);
-      [[1, 1], [2, 0.45], [3, 0.2], [4, 0.1], [5, 0.05]].forEach(([m, a]) => {
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.type = 'sine';
-        o.frequency.value = freq * m;
-        g.gain.value = a;
-        o.connect(g); g.connect(master);
-        o.start(t); o.stop(t + 1.9);
+      freq = freq * OCTAVE;
+      partials.forEach(([m, amp, decay]) => {
+        [-3, 3].forEach(cents => {            // دو نوسان‌ساز کمی ناهم‌کوک: صدای گرم‌تر
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = 'sine';
+          o.frequency.value = freq * m;
+          o.detune.value = cents;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(amp * 0.5, t + 0.015);
+          g.gain.setTargetAtTime(0, t + 0.015, decay * 0.8);
+          o.connect(g); g.connect(out);
+          o.start(t); o.stop(t + 4);
+        });
       });
     }
 
