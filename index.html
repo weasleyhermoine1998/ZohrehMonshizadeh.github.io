@@ -198,15 +198,23 @@
         <p class="quote">For me, music and mathematics are two different yet deeply connected ways of understanding the world.</p>
       </div>
 
-      <div class="piano" aria-hidden="true">
-        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-        <b style="left:10.3%"></b>
-        <b style="left:24.6%"></b>
-        <b style="left:53.1%"></b>
-        <b style="left:67.4%"></b>
-        <b style="left:81.7%"></b>
+            <div class="piano-wrap">
+        <div class="piano" aria-label="Interactive piano">
+          <i data-note="261.63"></i>
+          <i data-note="293.66"></i>
+          <i data-note="329.63"></i>
+          <i data-note="349.23"></i>
+          <i data-note="392.00"></i>
+          <i data-note="440.00"></i>
+          <i data-note="493.88"></i>
+          <b data-note="277.18" style="left:10.3%"></b>
+          <b data-note="311.13" style="left:24.6%"></b>
+          <b data-note="369.99" style="left:53.1%"></b>
+          <b data-note="415.30" style="left:67.4%"></b>
+          <b data-note="466.16" style="left:81.7%"></b>
+        </div>
+        <p class="piano-hint">Hover over the keys to play 🎹<br>(click anywhere once if you hear nothing)</p>
       </div>
-    </section>
             <section class="dream" id="dream">
       <div class="dream-art" aria-hidden="true">
         <svg viewBox="0 0 300 400">
@@ -262,6 +270,60 @@
       });
     }, { threshold: 0.15 });
     items.forEach(el => io.observe(el));
+  </script>
+    <script>
+  (function () {
+    let ctx = null;
+    function getCtx() {
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        ctx = new AC();
+      }
+      return ctx;
+    }
+    ['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+      document.addEventListener(ev, () => {
+        const c = getCtx();
+        if (c && c.state === 'suspended') c.resume();
+      }, { passive: true, capture: true })
+    );
+
+    function tone(freq) {
+      const t = ctx.currentTime;
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, t);
+      master.gain.exponentialRampToValueAtTime(0.5, t + 0.012);
+      master.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+      master.connect(ctx.destination);
+      [[1, 1], [2, 0.45], [3, 0.2], [4, 0.1], [5, 0.05]].forEach(([m, a]) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.value = freq * m;
+        g.gain.value = a;
+        o.connect(g); g.connect(master);
+        o.start(t); o.stop(t + 1.9);
+      });
+    }
+
+    function play(freq, fromGesture) {
+      const c = getCtx();
+      if (!c) return;
+      if (c.state === 'running') tone(freq);
+      else if (fromGesture) c.resume().then(() => tone(freq));
+    }
+
+    document.querySelectorAll('.piano [data-note]').forEach(key => {
+      const hit = (g) => {
+        play(parseFloat(key.dataset.note), g);
+        key.classList.add('on');
+        setTimeout(() => key.classList.remove('on'), 220);
+      };
+      key.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') hit(false); });
+      key.addEventListener('pointerdown',  e => { if (e.pointerType !== 'mouse') hit(true); });
+    });
+  })();
   </script>
 
 </body>
